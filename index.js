@@ -10,7 +10,7 @@ app.use(express.json())
 
 
 
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const uri = `mongodb+srv://${process.env.DB_ADMIN}:${process.env.DB_PASS}@cluster0.epzmh.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
@@ -30,16 +30,23 @@ async function run() {
     await client.connect();
 
 
-    app.post('/user/to-do', async(req, res)=>{
+    app.post('/tasks', async(req, res)=>{
       const userData = req.body;
       const result = await ToDoCollection.insertOne(userData)
       res.send(result)
     })
 
-    app.get('/user/:email', async(req, res)=>{
+    app.get('/tasks/:email', async(req, res)=>{
       const email = req.params.email;
       const query = {email: email}
       const result = await ToDoCollection.find(query).toArray()
+      res.send(result);
+    })
+
+    app.delete('/tasks/:id', async(req,res)=>{
+      const id = req.params.id;
+      const query = {_id: new ObjectId(id)}
+      const result = await ToDoCollection.deleteOne(query)
       res.send(result);
     })
     // Send a ping to confirm a successful connection
