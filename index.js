@@ -6,10 +6,21 @@ const app = express();
 
 app.use(
   cors({
-    origin: ["http://localhost:5173", "https://to-do-application-1a053.web.app"],
+    origin: [
+      "http://localhost:5173",
+      "https://to-do-application-1a053.web.app",
+    ],
     methods: ["GET", "POST", "PUT", "DELETE"],
+    credentials: true,
   })
 );
+
+app.use((req, res, next) => {
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE");
+  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  next();
+});
 app.use(express.json());
 
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
@@ -85,21 +96,34 @@ async function run() {
 
     app.put("/tasks/reorder", async (req, res) => {
       const { tasks } = req.body;
+    
+      if (!Array.isArray(tasks) || tasks.some(task => !task._id || !task.order)) {
+        return res.status(400).json({ error: "Invalid input data" });
+      }
+    
       try {
-        const bulkOps = tasks.map((task) => ({
-          updateOne: {
-            filter: { _id: new ObjectId(task._id) },
-            update: { $set: { order: task.order } },
-          },
-        }));
-
+        const bulkOps = tasks.map((task) => {
+          // Validate ObjectId format before using it
+          if (!ObjectId.isValid(task._id)) {
+            throw new Error(`Invalid ObjectId format: ${task._id}`);
+          }
+          
+          return {
+            updateOne: {
+              filter: { _id: new ObjectId(task._id) },
+              update: { $set: { order: task.order } },
+            },
+          };
+        });
+    
         await ToDoCollection.bulkWrite(bulkOps);
         res.json({ message: "Tasks reordered successfully!" });
       } catch (error) {
         console.error("Failed to reorder tasks:", error);
-        res.status(500).json({ error: "Failed to reorder tasks" });
+        res.status(500).json({ error: error.message || "Failed to reorder tasks" });
       }
     });
+
     // Send a ping to confirm a successful connection
     // await client.db("admin").command({ ping: 1 });
     // console.log("Pinged your deployment. You successfully connected to MongoDB!");
