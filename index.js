@@ -4,7 +4,12 @@ const cors = require("cors");
 const port = process.env.PORT || 5000;
 const app = express();
 
-app.use(cors());
+app.use(
+  cors({
+    origin: ["http://localhost:5173", "https://to-do-application-1a053.web.app"],
+    methods: ["GET", "POST", "PUT", "DELETE"],
+  })
+);
 app.use(express.json());
 
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
@@ -68,9 +73,7 @@ async function run() {
         updatedFields.date = data.date;
       }
       const updatedDoc = {
-        $set: {
-          updatedFields,
-        },
+        $set: updatedFields,
       };
       const result = await ToDoCollection.updateOne(
         filter,
@@ -78,6 +81,25 @@ async function run() {
         options
       );
       res.send(result);
+    });
+
+    app.put("/tasks/reorder", async (req, res) => {
+      const { tasks } = req.body;
+
+      try {
+        const bulkOps = tasks.map((task) => ({
+          updateOne: {
+            filter: { _id: new ObjectId(task._id) },
+            update: { $set: { order: task.order } },
+          },
+        }));
+
+        await tasksCollection.bulkWrite(bulkOps);
+        res.json({ message: "Tasks reordered successfully!" });
+      } catch (error) {
+        console.error("Failed to reorder tasks:", error);
+        res.status(500).json({ error: "Failed to reorder tasks" });
+      }
     });
     // Send a ping to confirm a successful connection
     // await client.db("admin").command({ ping: 1 });
